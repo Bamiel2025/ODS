@@ -1,0 +1,6 @@
+{
+  "name": "ODS Provence - Ripisylve Ubelka",
+  "description": "Activité pédagogique de suivi phénologique de la ripisylve de l'Huveaune pour les élèves de 6ème du Collège Ubelka d'Auriol, liée au protocole de l'Observatoire des Saisons Provence.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
