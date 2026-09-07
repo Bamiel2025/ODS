@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Diagnostic — Liaison ODS ↔ Google Sheets</title>
+<style>
+  :root{
+    --bg:#f6f7f9; --card:#ffffff; --ink:#1a2027; --muted:#5b6672; --line:#e2e6eb;
+    --ok:#0f7b52; --okbg:#e6f5ee; --bad:#b3261e; --badbg:#fdeceb;
+    --warn:#8a5a00; --warnbg:#fdf3e0; --info:#1d5fb8; --infobg:#e8f1fc;
+    --accent:#1d5fb8;
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0; background:var(--bg); color:var(--ink);
+    font-family:"Segoe UI",system-ui,-apple-system,Roboto,Helvetica,Arial,sans-serif;
+    font-size:15px; line-height:1.55;
+  }
+  .wrap{max-width:900px; margin:0 auto; padding:28px 20px 60px}
+  h1{font-size:22px; margin:0 0 4px}
+  .sub{color:var(--muted); margin:0 0 22px; font-size:14px}
+  .card{
+    background:var(--card); border:1px solid var(--line); border-radius:12px;
+    padding:18px 20px; margin-bottom:16px;
+  }
+  .card h2{font-size:16px; margin:0 0 4px; display:flex; align-items:center; gap:9px}
+  .step{
+    width:24px;height:24px;border-radius:50%;background:var(--accent);color:#fff;
+    font-size:13px;display:inline-flex;align-items:center;justify-content:center;flex:0 0 auto;
+  }
+  .hint{color:var(--muted); font-size:13.5px; margin:0 0 12px}
+  label{display:block; font-size:13px; font-weight:600; margin:10px 0 4px}
+  input[type=text]{
+    width:100%; padding:8px 10px; border:1px solid var(--line); border-radius:8px;
+    font-size:13.5px; font-family:ui-monospace,Consolas,monospace; background:#fbfcfd; color:var(--ink);
+  }
+  input[type=text]:focus{outline:2px solid var(--infobg); border-color:var(--accent)}
+  .grid2{display:grid; grid-template-columns:1fr 1fr; gap:0 14px}
+  @media(max-width:640px){.grid2{grid-template-columns:1fr}}
+  button{
+    font:inherit; font-size:14px; padding:9px 15px; border-radius:8px; cursor:pointer;
+    border:1px solid var(--accent); background:var(--accent); color:#fff; margin:4px 6px 4px 0;
+  }
+  button:hover{filter:brightness(1.08)}
+  button.ghost{background:#fff; color:var(--accent)}
+  button.gray{border-color:var(--line); background:#fff; color:var(--ink)}
+  .row{display:flex; flex-wrap:wrap; gap:0; align-items:center}
+  code{
+    background:#f0f2f5; padding:1px 5px; border-radius:5px; font-size:13px;
+    font-family:ui-monospace,Consolas,monospace;
+  }
+  pre{
+    background:#0f1720; color:#dbe6f2; padding:12px 14px; border-radius:9px;
+    overflow:auto; font-size:12.5px; max-height:210px; margin:10px 0 0;
+    font-family:ui-monospace,Consolas,monospace; white-space:pre-wrap; word-break:break-word;
+  }
+  .msg{margin:10px 0 0; padding:10px 13px; border-radius:9px; font-size:13.5px; display:none}
+  .msg.ok{display:block; background:var(--okbg); color:var(--ok); border:1px solid #b9e2cf}
+  .msg.bad{display:block; background:var(--badbg); color:var(--bad); border:1px solid #f3c6c2}
+  .msg.warn{display:block; background:var(--warnbg); color:var(--warn); border:1px solid #ecd9a8}
+  .msg.info{display:block; background:var(--infobg); color:var(--info); border:1px solid #c3daf5}
+  ul{margin:8px 0 0; padding-left:20px} li{margin:3px 0; font-size:13.5px}
+  table{border-collapse:collapse; width:100%; font-size:13px; margin-top:8px}
+  th,td{border:1px solid var(--line); padding:6px 8px; text-align:left}
+  th{background:#f5f7fa; font-weight:600}
+  .foot{color:var(--muted); font-size:12.5px; text-align:center; margin-top:26px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Diagnostic — Liaison ODS ↔ Google Sheets</h1>
+  <p class="sub">Outil autonome pour valider la chaîne sans attendre un redéploiement Vercel. Les réglages sont mémorisés dans ce navigateur.</p>
+
+  <!-- ------------------------------ CONFIG ------------------------------ -->
+  <div class="card">
+    <h2><span class="step">0</span> Réglages</h2>
+    <p class="hint">Déjà pré-remplis avec les valeurs du projet. Corrige uniquement si besoin.</p>
+    <label for="url">URL du Google Apps Script (finit par <code>/exec</code>)</label>
+    <input type="text" id="url" value="https://script.google.com/macros/s/AKfycbwGCOZ27htVQTa-1UV0gh9ZGKgxUexfGzwpy_V__GviVg0loA9Koa0c3_nrFqSf70INYg/exec">
+    <div class="grid2">
+      <div>
+        <label for="token">Jeton partagé</label>
+        <input type="text" id="token" value="ubelka-ods-2027">
+      </div>
+      <div>
+        <label for="station">Station ODS</label>
+        <input type="text" id="station" value="Collège Ubelka - Auriol (Ripisylve de l'Huveaune)">
+      </div>
+      <div>
+        <label for="sheet">Onglet des relevés</label>
+        <input type="text" id="sheet" value="ODS_Releves">
+      </div>
+      <div>
+        <label for="exp">Onglet d'export</label>
+        <input type="text" id="exp" value="ODS_Export">
+      </div>
+    </div>
+    <label for="sheeturl">Adresse du Google Sheet (pour l'ouvrir d'un clic)</label>
+    <input type="text" id="sheeturl" placeholder="https://docs.google.com/spreadsheets/d/.../edit">
+    <div class="row" style="margin-top:12px">
+      <button class="gray" id="save">Enregistrer</button>
+      <button class="ghost" id="openSheet">Ouvrir le tableur</button>
+    </div>
+  </div>
+
+  <!-- ------------------------------ ETAPE 1 ----------------------------- -->
+  <div class="card">
+    <h2><span class="step">1</span> Le script déployé contient-il le code ODS ?</h2>
+    <p class="hint">
+      Ouvre l'URL dans un nouvel onglet et lis ce qui s'affiche. C'est le test le plus fiable :
+      il ne dépend ni du CORS ni du jeton.
+    </p>
+    <div class="row">
+      <button id="openPing">Ouvrir le test dans un onglet</button>
+      <button class="gray" id="copyPing">Copier l'URL</button>
+    </div>
+    <table>
+      <tr><th style="width:45%">Ce que tu vois</th><th>Conclusion</th></tr>
+      <tr><td><code>{"ok":true,"action":"ping",…}</code></td><td>✅ Script correctement déployé — passe à l'étape 2.</td></tr>
+      <tr><td><strong>Fonction de script introuvable : doGet</strong></td><td>❌ Déploiement <strong>antérieur</strong> au collage du code → <em>Déployer &gt; Gérer les déploiements &gt; ✏️ &gt; Version : Nouvelle version &gt; Déployer</em>.</td></tr>
+      <tr><td>Page de connexion Google</td><td>❌ « Qui a accès » n'est pas réglé sur <strong>Tout le monde</strong>.</td></tr>
+      <tr><td>« Google n'a pas vérifié cette application »</td><td>❌ Cliquer sur <em>Avancé &gt; Autoriser</em> une première fois.</td></tr>
+    </table>
+    <div class="msg info" id="m1" style="display:block">
+      État actuel constaté le 07/09/2026 : la réponse est « Fonction de script introuvable : doGet ».
+      Il faut redéployer en <strong>nouvelle version</strong>.
+    </div>
+  </div>
+
+  <!-- ------------------------------ ETAPE 2 ----------------------------- -->
+  <div class="card">
+    <h2><span class="step">2</span> Le POST est-il accepté ? (jeton + onglets)</h2>
+    <p class="hint">
+      Envoie un <code>ping</code> en POST. Si le navigateur bloque la lecture (CORS), l'onglet s'affichera
+      « envoyé, réponse illisible » : c'est normal depuis un fichier local, la vérification se fait alors à l'étape 3.
+    </p>
+    <div class="row"><button id="ping">Tester la connexion (POST)</button></div>
+    <div class="msg" id="m2"></div>
+  </div>
+
+  <!-- ------------------------------ ETAPE 3 ----------------------------- -->
+  <div class="card">
+    <h2><span class="step">3</span> Une fiche de test arrive-t-elle dans le tableur ?</h2>
+    <p class="hint">
+      Envoie une ligne <code>ID_OBSERVATION = DIAG-…</code> (espèce : Bouleau verruqueux, stade F1).
+      Ouvre ensuite le tableur : la ligne doit apparaître dans <code>ODS_Releves</code>.
+      <strong>Pense à la supprimer</strong> après le test.
+    </p>
+    <div class="row">
+      <button id="send">Envoyer une fiche de test</button>
+      <button class="gray" id="openSheet2">Ouvrir le tableur</button>
+    </div>
+    <div class="msg" id="m3"></div>
+  </div>
+
+  <!-- ------------------------------ ETAPE 4 ----------------------------- -->
+  <div class="card">
+    <h2><span class="step">4</span> L'onglet ODS_Export se génère-t-il ?</h2>
+    <p class="hint">
+      Reconstruit l'onglet d'export au format obs-saisons.fr à partir des relevés.
+      Une ligne de test produira une ligne <code>F1</code> dans <code>ODS_Export</code>.
+    </p>
+    <div class="row"><button id="export">Reconstruire l'export</button></div>
+    <div class="msg" id="m4"></div>
+  </div>
+
+  <!-- ------------------------------ JOURNAL ----------------------------- -->
+  <div class="card">
+    <h2><span class="step">≡</span> Journal brut</h2>
+    <p class="hint">Réponses telles que renvoyées par Google (pour copier-coller en cas de besoin d'aide).</p>
+    <pre id="log">— aucune requête pour l'instant —</pre>
+  </div>
+
+  <p class="foot">ODS « Sentinelles de la Ripisylve » — Collège Ubelka, Auriol · code enseignant : 2027</p>
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  var FORMAT = 'ods-ubelka-v1';
+  var KEYS = ['url','token','station','sheet','exp','sheeturl'];
+  var $ = function(id){ return document.getElementById(id); };
+
+  /* ---------- mémorisation ---------- */
+  function load(){
+    try{
+      var raw = localStorage.getItem('ods_diag_config');
+      if(!raw) return;
+      var c = JSON.parse(raw);
+      KEYS.forEach(function(k){ if(typeof c[k] === 'string') $(k).value = c[k]; });
+    }catch(e){}
+  }
+  function save(){
+    var c = {};
+    KEYS.forEach(function(k){ c[k] = $(k).value.trim(); });
+    try{ localStorage.setItem('ods_diag_config', JSON.stringify(c)); }catch(e){}
+  }
+  function cfg(){
+    return {
+      url: $('url').value.trim(),
+      token: $('token').value.trim(),
+      station: $('station').value.trim(),
+      sheet: $('sheet').value.trim() || 'ODS_Releves',
+      exp: $('exp').value.trim() || 'ODS_Export',
+      sheeturl: $('sheeturl').value.trim()
+    };
+  }
+  load();
+
+  /* ---------- journal ---------- */
+  function log(title, text){
+    var stamp = new Date().toLocaleTimeString('fr-FR');
+    $('log').textContent = '[' + stamp + '] ' + title + '\n' + text + '\n\n' + $('log').textContent;
+  }
+  function show(id, kind, html){
+    var el = $(id);
+    el.className = 'msg ' + kind;
+    el.innerHTML = html;
+  }
+
+  /* ---------- traduction des erreurs Google ---------- */
+  function translateGoogleError(html){
+    if(!html || html.charAt(0) !== '<') return null;
+    var t = html.replace(/<[^>]+>/g,' ').replace(/\s+/g,' ').toLowerCase();
+    if(t.indexOf('fonction de script introuvable') !== -1 || t.indexOf('script function not found') !== -1){
+      return "Le script déployé ne contient pas encore le code ODS. Ouvre <em>Extensions &gt; Apps Script</em>, colle <code>Code.gs</code>, enregistre, puis <em>Déployer &gt; Gérer les déploiements &gt; ✏️ &gt; Version : Nouvelle version &gt; Déployer</em>.";
+    }
+    if(t.indexOf('vérifié cette application') !== -1 || t.indexOf('unverified app') !== -1){
+      return "Déploiement en attente d'autorisation : ouvre l'URL /exec dans le navigateur, clique sur <em>Avancé &gt; Autoriser</em>, puis réessaie.";
+    }
+    if(t.indexOf('autorisation') !== -1 || t.indexOf('sign in') !== -1 || t.indexOf('connexion') !== -1){
+      return "Le script refuse les appels anonymes : redéploie avec <em>Exécuter en tant que : Moi</em> et <em>Qui a accès : Tout le monde</em>.";
+    }
+    if(t.indexOf('erreur') !== -1 || t.indexOf('sorry') !== -1){
+      return "Google a renvoyé une page d'erreur. Ouvre l'URL /exec dans un onglet pour lire le message exact.";
+    }
+    return null;
+  }
+
+  /* ---------- transport ---------- */
+  function post(payload, c){
+    var body = JSON.stringify(payload);
+    var headers = {'Content-Type':'text/plain;charset=utf-8'};
+    return fetch(c.url, {method:'POST', headers:headers, body:body, redirect:'follow'})
+      .then(function(r){ return r.text().then(function(t){ return {status:r.status, text:t}; }); })
+      .then(function(res){
+        try{
+          return {readable:true, json:JSON.parse(res.text), raw:res.text, status:res.status};
+        }catch(e){
+          return {readable:false, raw:res.text, status:res.status};
+        }
+      })
+      .catch(function(){
+        // CORS : on renvoie en "no-cors", la requête part mais la réponse reste opaque.
+        return fetch(c.url, {method:'POST', mode:'no-cors', headers:headers, body:body})
+          .then(function(){ return {readable:false, opaque:true, raw:''}; })
+          .catch(function(err){ return {readable:false, fatal:String(err), raw:''}; });
+      });
+  }
+
+  function rapport(id, titre, res){
+    log(titre, res.raw || ('opaque — ' + JSON.stringify(res)));
+    if(res.fatal){
+      show(id,'bad',"Envoi impossible : <code>" + res.fatal + "</code><br>Vérifie l'URL et la connexion Internet.");
+      return;
+    }
+    if(res.readable){
+      var j = res.json || {};
+      if(j.ok === false){
+        show(id,'bad',"Refusé par le script : <strong>" + (j.error || 'erreur inconnue') + "</strong><br>Vérifie que le jeton est identique à <code>CONFIG.TOKEN</code> dans <code>Code.gs</code>.");
+      }else{
+        var extra = [];
+        if(j.spreadsheet) extra.push('classeur « ' + j.spreadsheet + ' »');
+        if(j.sheet) extra.push('onglet « ' + j.sheet + ' »');
+        if(typeof j.rows === 'number') extra.push(j.rows + ' relevé(s)');
+        if(typeof j.added === 'number') extra.push(j.added + ' ajouté(s), ' + (j.updated||0) + ' mis à jour, ' + (j.ignored||0) + ' ignoré(s)');
+        if(typeof j.exportRows === 'number') extra.push(j.exportRows + ' ligne(s) d\'export');
+        show(id,'ok',"✅ " + (j.action || 'ok') + (extra.length ? " — " + extra.join(' · ') : ''));
+      }
+      return;
+    }
+    var diag = translateGoogleError(res.raw);
+    if(diag){ show(id,'bad', diag); return; }
+    if(res.opaque){
+      show(id,'warn',"Requête <strong>envoyée</strong> mais réponse illisible depuis ce fichier (CORS). Ouvre le tableur pour vérifier que la ligne est bien arrivée.");
+      return;
+    }
+    show(id,'warn',"Réponse non JSON (HTTP " + res.status + "). Vérifie que le déploiement est en <em>Application web</em> avec l'accès <em>Tout le monde</em>.");
+  }
+
+  /* ---------- ligne de test (28 colonnes) ---------- */
+  function saison(){
+    var d = new Date(), y = d.getFullYear(), m = d.getMonth();
+    return m >= 7 ? (y + '-' + (y+1)) : ((y-1) + '-' + y);
+  }
+  function testRow(c){
+    var now = new Date();
+    var pad = function(n){ return (n<10?'0':'') + n; };
+    var date = now.getFullYear() + '-' + pad(now.getMonth()+1) + '-' + pad(now.getDate());
+    return [
+      'DIAG-' + now.getTime(), date, saison(), 'Ligneuse', 'Diagnostic',
+      'Bouleau verruqueux', 'Betula pendula', c.station, 'Zone humide',
+      'Oui','Non','Non','Non','Non','Non','Non','Non',
+      '', '', 'État des feuilles : vertes', 'Ciel dégagé', '18', 'Moyen',
+      'Certaine', 'Ligne de test — à supprimer', '', now.toISOString(), 'Diagnostic ODS'
+    ];
+  }
+
+  /* ---------- actions ---------- */
+  $('save').onclick = function(){ save(); show('m2','info','Réglages enregistrés dans ce navigateur.'); };
+
+  function openSheet(){
+    var u = cfg().sheeturl;
+    if(!u){ show('m2','warn',"Renseigne d'abord l'adresse du Google Sheet dans les réglages."); return; }
+    window.open(u, '_blank');
+  }
+  $('openSheet').onclick = openSheet;
+  $('openSheet2').onclick = openSheet;
+
+  $('openPing').onclick = function(){
+    window.open(cfg().url + '?action=ping', '_blank');
+    show('m1','info','Onglet ouvert : lis la réponse affichée et compare avec le tableau ci-dessus.');
+  };
+  $('copyPing').onclick = function(){
+    var u = cfg().url + '?action=ping';
+    if(navigator.clipboard){ navigator.clipboard.writeText(u); }
+    show('m1','info','URL copiée : <code>' + u + '</code>');
+  };
+
+  $('ping').onclick = function(){
+    save();
+    var c = cfg();
+    if(!c.url){ show('m2','bad',"Renseigne l'URL /exec."); return; }
+    show('m2','info','Envoi du ping…');
+    post({action:'ping', token:c.token, format:FORMAT, sheetName:c.sheet, exportSheetName:c.exp}, c)
+      .then(function(res){ rapport('m2','POST ping', res); });
+  };
+
+  $('send').onclick = function(){
+    save();
+    var c = cfg();
+    show('m3','info','Envoi de la fiche de test…');
+    post({
+      action:'append', token:c.token, format:FORMAT,
+      sheetName:c.sheet, exportSheetName:c.exp, overwrite:false,
+      rows:[testRow(c)]
+    }, c).then(function(res){ rapport('m3','POST append (test)', res); });
+  };
+
+  $('export').onclick = function(){
+    save();
+    var c = cfg();
+    show('m4','info','Reconstruction de l\'onglet d\'export…');
+    post({
+      action:'export', token:c.token, format:FORMAT,
+      sheetName:c.sheet, exportSheetName:c.exp
+    }, c).then(function(res){ rapport('m4','POST export', res); });
+  };
+})();
+</script>
+</body>
+</html>

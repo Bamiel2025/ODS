@@ -165,6 +165,11 @@ préfères créer les variables à la main dans Vercel, voici la liste complète
 
 ## 6. Dépannage
 
+**Outil de diagnostic autonome : `docs/diagnostic-ods.html`.**
+Ouvre ce fichier directement dans le navigateur (double-clic) : il teste la chaîne étape par étape
+(script déployé → POST accepté → fiche de test reçue → export généré) **sans attendre un
+redéploiement Vercel**. Les réglages y sont pré-remplis et mémorisés.
+
 | Symptôme                                              | Cause probable / solution                                                                 |
 |-------------------------------------------------------|-------------------------------------------------------------------------------------------|
 | « Connexion refusée » ou jeton invalide               | Le jeton de l'application diffère de `CONFIG.TOKEN` du script.                              |
