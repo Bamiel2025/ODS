@@ -14,7 +14,8 @@ import {
   BookOpen, 
   ExternalLink,
   Smartphone,
-  Sparkles
+  Sparkles,
+  CloudUpload
 } from 'lucide-react';
 
 import { TripType, Observation } from './types';
@@ -25,10 +26,23 @@ import PedagogicalGuide from './components/PedagogicalGuide';
 import SpeciesGuide from './components/SpeciesGuide';
 import ObservationForm from './components/ObservationForm';
 import DataDashboard from './components/DataDashboard';
+import SheetSyncPanel, { SyncStatus } from './components/SheetSyncPanel';
+import {
+  OdsSheetsConfig,
+  SyncResult,
+  loadSheetsConfig,
+  saveSheetsConfig,
+  isSheetsConfigured,
+  syncObservations,
+  testSheetsConnection,
+  rebuildExportSheet
+} from './lib/odsSheets';
+
+const CACHE_KEY = 'ubelka_ods_observations_v3';
 
 export default function App() {
   // State for active tab
-  const [activeTab, setActiveTab] = useState<'accueil' | 'pedago' | 'especes' | 'saisie' | 'dashboard'>('accueil');
+  const [activeTab, setActiveTab] = useState<'accueil' | 'pedago' | 'especes' | 'saisie' | 'dashboard' | 'sheets'>('accueil');
   
   // State for simulated active trip (Autumn, Winter, Spring)
   const [activeTripType, setActiveTripType] = useState<TripType>('printemps');
@@ -40,9 +54,14 @@ export default function App() {
   // Observations database stored in localStorage
   const [observations, setObservations] = useState<Observation[]>([]);
 
+  // Liaison Google Sheets (configuration du pont Apps Script)
+  const [sheetsConfig, setSheetsConfig] = useState<OdsSheetsConfig>(() => loadSheetsConfig());
+  const [syncStatus, setSyncStatus] = useState<SyncStatus>({ kind: 'idle', message: '' });
+  const [isSyncing, setIsSyncing] = useState<boolean>(false);
+
   // Load observations from localStorage or initialize with empty data
   useEffect(() => {
-    const cached = localStorage.getItem('ubelka_ods_observations_v3');
+    const cached = localStorage.getItem(CACHE_KEY);
     if (cached) {
       try {
         setObservations(JSON.parse(cached));
@@ -57,7 +76,94 @@ export default function App() {
   // Sync back to localStorage whenever observations update
   const saveObservationsToCache = (newObs: Observation[]) => {
     setObservations(newObs);
-    localStorage.setItem('ubelka_ods_observations_v3', JSON.stringify(newObs));
+    localStorage.setItem(CACHE_KEY, JSON.stringify(newObs));
+  };
+
+  /* ------------------------------------------------------------------ */
+  /*  Synchronisation Google Sheets                                      */
+  /* ------------------------------------------------------------------ */
+
+  const updateSheetsConfig = (config: OdsSheetsConfig) => {
+    setSheetsConfig(config);
+    saveSheetsConfig(config);
+  };
+
+  // Applique le résultat d'un envoi : horodatage ou message d'erreur
+  const applySyncResult = (ids: string[], result: SyncResult) => {
+    const stamp = new Date().toISOString();
+    setObservations(prev => {
+      const next = prev.map(obs =>
+        ids.includes(obs.id)
+          ? result.ok
+            ? { ...obs, isSubmitted: true, syncedAt: stamp, syncError: undefined }
+            : { ...obs, syncError: result.message }
+          : obs
+      );
+      localStorage.setItem(CACHE_KEY, JSON.stringify(next));
+      return next;
+    });
+    setSyncStatus({
+      kind: result.ok ? 'ok' : 'error',
+      message: result.message,
+      at: stamp
+    });
+  };
+
+  // Envoie une liste de fiches vers le Google Sheet
+  const runSync = async (targets: Observation[]) => {
+    if (!targets.length) {
+      setSyncStatus({ kind: 'error', message: 'Aucune fiche à envoyer vers Google Sheets.' });
+      return;
+    }
+    setIsSyncing(true);
+    setSyncStatus({
+      kind: 'running',
+      message: `Envoi de ${targets.length} fiche${targets.length > 1 ? 's' : ''} vers le Google Sheet…`
+    });
+    try {
+      const result = await syncObservations(targets, sheetsConfig);
+      applySyncResult(targets.map(t => t.id), result);
+    } finally {
+      setIsSyncing(false);
+    }
+  };
+
+  // Envoie toutes les fiches qui n'ont jamais été synchronisées
+  const handleSyncPending = () => runSync(observations.filter(obs => !obs.syncedAt));
+
+  // Envoie une seule fiche
+  const handleSyncOne = (id: string) => runSync(observations.filter(obs => obs.id === id));
+
+  // Test de connexion au tableur
+  const handleTestSheets = async () => {
+    setIsSyncing(true);
+    setSyncStatus({ kind: 'running', message: 'Test de la connexion au Google Sheet…' });
+    try {
+      const result = await testSheetsConnection(sheetsConfig);
+      setSyncStatus({
+        kind: result.ok ? 'ok' : 'error',
+        message: result.message,
+        at: new Date().toISOString()
+      });
+    } finally {
+      setIsSyncing(false);
+    }
+  };
+
+  // Régénération de l'onglet d'export ODS
+  const handleRebuildExport = async () => {
+    setIsSyncing(true);
+    setSyncStatus({ kind: 'running', message: "Reconstruction de l'onglet d'export ODS…" });
+    try {
+      const result = await rebuildExportSheet(sheetsConfig);
+      setSyncStatus({
+        kind: result.ok ? 'ok' : 'error',
+        message: result.message,
+        at: new Date().toISOString()
+      });
+    } finally {
+      setIsSyncing(false);
+    }
   };
 
   // Add observation
@@ -69,6 +175,11 @@ export default function App() {
     };
     const updated = [newRecord, ...observations];
     saveObservationsToCache(updated);
+
+    // Envoi automatique vers le Google Sheet si la liaison est active
+    if (sheetsConfig.autoSync && isSheetsConfigured(sheetsConfig)) {
+      void runSync([newRecord]);
+    }
   };
 
   // Delete observation
@@ -229,6 +340,10 @@ export default function App() {
                       onDeleteObservation={handleDeleteObservation}
                       onClearAll={handleClearAll}
                       onMarkSubmitted={handleMarkSubmitted}
+                      sheetsEnabled={isSheetsConfigured(sheetsConfig)}
+                      isSyncing={isSyncing}
+                      onSyncOne={handleSyncOne}
+                      onSyncAll={handleSyncPending}
                       isMobile={true}
                     />
                   </div>
@@ -456,6 +571,22 @@ export default function App() {
               <Database className="w-3.5 h-3.5" />
               Carnet de Classe ({observations.length})
             </button>
+            <button
+              onClick={() => setActiveTab('sheets')}
+              className={`px-4 py-2.5 rounded-2xl text-xs font-black uppercase tracking-wider transition-all shrink-0 flex items-center gap-1.5 border-2 ${
+                activeTab === 'sheets'
+                  ? 'bg-emerald-600 border-emerald-700 text-white shadow-lg shadow-emerald-100'
+                  : 'bg-white border-emerald-100 text-emerald-800 hover:bg-emerald-50/60 shadow-xs'
+              }`}
+            >
+              <CloudUpload className="w-3.5 h-3.5" />
+              Google Sheets
+              {isSheetsConfigured(sheetsConfig) ? (
+                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+              ) : (
+                <span className="w-2 h-2 rounded-full bg-amber-400"></span>
+              )}
+            </button>
           </nav>
         </div>
       </div>
@@ -576,6 +707,23 @@ export default function App() {
               onDeleteObservation={handleDeleteObservation}
               onClearAll={handleClearAll}
               onMarkSubmitted={handleMarkSubmitted}
+              sheetsEnabled={isSheetsConfigured(sheetsConfig)}
+              isSyncing={isSyncing}
+              onSyncOne={handleSyncOne}
+              onSyncAll={handleSyncPending}
+            />
+          )}
+
+          {activeTab === 'sheets' && (
+            <SheetSyncPanel
+              observations={observations}
+              config={sheetsConfig}
+              onConfigChange={updateSheetsConfig}
+              onTest={handleTestSheets}
+              onSyncPending={handleSyncPending}
+              onRebuildExport={handleRebuildExport}
+              status={syncStatus}
+              isSyncing={isSyncing}
             />
           )}
         </motion.div>

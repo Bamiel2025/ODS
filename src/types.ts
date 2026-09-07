@@ -38,6 +38,10 @@ export interface Observation {
   groupName: string;
   isSubmitted: boolean;
 
+  // Suivi de la synchronisation vers Google Sheets
+  syncedAt?: string; // Horodatage ISO du dernier envoi réussi vers le Google Sheet
+  syncError?: string; // Dernier message d'erreur de synchronisation
+
   // Form Type Definition
   ficheType: 'ligneuse' | 'herbacee' | 'animale';
   speciesName: string; // e.g., "Frêne à feuilles étroites"

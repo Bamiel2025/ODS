@@ -12,7 +12,9 @@ import {
   Award,
   Printer,
   FileText,
-  BookOpen
+  BookOpen,
+  AlertTriangle,
+  CloudUpload
 } from 'lucide-react';
 
 interface DataDashboardProps {
@@ -21,6 +23,11 @@ interface DataDashboardProps {
   onClearAll: () => void;
   onMarkSubmitted: (id: string) => void;
   isMobile?: boolean;
+  // Liaison Google Sheets (optionnelle)
+  sheetsEnabled?: boolean;
+  isSyncing?: boolean;
+  onSyncOne?: (id: string) => void;
+  onSyncAll?: () => void;
 }
 
 const DEFAULT_GROUPS = [
@@ -36,6 +43,10 @@ export default function DataDashboard({
   onDeleteObservation, 
   onClearAll,
   onMarkSubmitted,
+  sheetsEnabled = false,
+  isSyncing = false,
+  onSyncOne,
+  onSyncAll,
   isMobile = false
 }: DataDashboardProps) {
   const [selectedObs, setSelectedObs] = useState<Observation | null>(null);
@@ -115,24 +126,43 @@ export default function DataDashboard({
     }, 1000);
   };
 
-  // Simulate sharing to ODS database (highly rewarding for school children!)
-  const handleSimulateSubmission = (obsId: string) => {
-    onMarkSubmitted(obsId);
-    setSubmissionFeedback(`La fiche de saisie #${obsId} a été envoyée avec succès sur le serveur de l'Observatoire des Saisons Provence ! Merci pour ton action éco-citoyenne.`);
-    
+  // Envoi d'une fiche : vers le Google Sheet si la liaison est configurée,
+  // sinon simulation locale (mode hors-ligne / non configuré).
+  const handleSendOne = (obsId: string) => {
+    if (sheetsEnabled && onSyncOne) {
+      onSyncOne(obsId);
+      setSubmissionFeedback(`Envoi de la fiche vers le Google Sheet en cours…`);
+    } else {
+      onMarkSubmitted(obsId);
+      setSubmissionFeedback(`La fiche de saisie #${obsId} a été validée localement. Configure la liaison Google Sheets (onglet dédié) pour la transmettre à l'ODS !`);
+    }
+
     setTimeout(() => {
       setSubmissionFeedback('');
     }, 5000);
   };
 
-  const handleSimulateAllSubmission = () => {
-    observations.forEach(obs => {
-      if (!obs.isSubmitted) {
-        onMarkSubmitted(obs.id);
+  // Envoi groupé de toutes les fiches en attente
+  const handleSendAll = () => {
+    const enAttente = observations.filter(o => !o.syncedAt);
+
+    if (sheetsEnabled && onSyncAll) {
+      if (enAttente.length === 0) {
+        setSubmissionFeedback(`Toutes les fiches ont déjà été envoyées au Google Sheet !`);
+        setTimeout(() => setSubmissionFeedback(''), 4000);
+        return;
       }
-    });
-    setSubmissionFeedback(`Toutes les fiches de saisie en attente ont été envoyées en lot à l'IMBE (Observatoire des Saisons) !`);
-    
+      onSyncAll();
+      setSubmissionFeedback(`Envoi de ${enAttente.length} fiche(s) vers le Google Sheet en cours…`);
+    } else {
+      observations.forEach(obs => {
+        if (!obs.isSubmitted) {
+          onMarkSubmitted(obs.id);
+        }
+      });
+      setSubmissionFeedback(`Toutes les fiches de saisie en attente ont été validées localement !`);
+    }
+
     setTimeout(() => {
       setSubmissionFeedback('');
     }, 5000);
@@ -282,7 +312,7 @@ export default function DataDashboard({
 
           <div className={`bg-white border-2 border-emerald-100 shadow-sm flex items-center gap-4 ${isMobile ? "rounded-xl p-3" : "rounded-3xl p-5"}`}>
             <div className={`${isMobile ? "w-9 h-9 text-base rounded-lg border" : "w-12 h-12 text-xl rounded-2xl border-2"} bg-amber-50 text-amber-700 flex items-center justify-center font-black font-mono border-amber-200`}>
-              {observations.filter(o => !o.isSubmitted).length}
+              {observations.filter(o => !o.syncedAt && !o.isSubmitted).length}
             </div>
             <div>
               <h4 className="text-[10px] font-black uppercase tracking-wider text-amber-700">En attente d'envoi</h4>
@@ -292,11 +322,15 @@ export default function DataDashboard({
 
           <div className={`bg-white border-2 border-emerald-100 shadow-sm flex items-center gap-4 ${isMobile ? "rounded-xl p-3" : "rounded-3xl p-5"}`}>
             <div className={`${isMobile ? "w-9 h-9 text-base rounded-lg border" : "w-12 h-12 text-xl rounded-2xl border-2"} bg-sky-50 text-sky-700 flex items-center justify-center font-black font-mono border-sky-200`}>
-              {observations.filter(o => o.isSubmitted).length}
+              {observations.filter(o => o.syncedAt).length}
             </div>
             <div>
-              <h4 className="text-[10px] font-black uppercase tracking-wider text-sky-700">Transmises à l'ODS</h4>
-              <p className="text-[11px] text-slate-500 font-medium mt-0.5">Données validées transmises.</p>
+              <h4 className="text-[10px] font-black uppercase tracking-wider text-sky-700">
+                {sheetsEnabled ? 'Dans le Google Sheet' : 'Transmises à l\'ODS'}
+              </h4>
+              <p className="text-[11px] text-slate-500 font-medium mt-0.5">
+                {sheetsEnabled ? 'Synchronisées avec le tableur.' : 'Données validées transmises.'}
+              </p>
             </div>
           </div>
         </div>
@@ -336,12 +370,12 @@ export default function DataDashboard({
                     Exporter format ODS (CSV)
                   </button>
                   <button
-                    onClick={handleSimulateAllSubmission}
-                    disabled={observations.every(o => o.isSubmitted)}
+                    onClick={handleSendAll}
+                    disabled={isSyncing || (sheetsEnabled ? observations.every(o => o.syncedAt) : observations.every(o => o.isSubmitted))}
                     className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black uppercase tracking-wider py-2.5 px-4 rounded-2xl transition-all flex items-center gap-1.5 shadow-md shadow-emerald-100 disabled:opacity-50 disabled:cursor-not-allowed border-2 border-emerald-700 cursor-pointer"
                   >
-                    <Send className="w-4 h-4" />
-                    Tout envoyer vers ODS
+                    {sheetsEnabled ? <CloudUpload className="w-4 h-4" /> : <Send className="w-4 h-4" />}
+                    {sheetsEnabled ? 'Tout envoyer vers Google Sheets' : 'Tout envoyer vers ODS'}
                   </button>
                 </>
               )}
@@ -410,7 +444,17 @@ export default function DataDashboard({
 
                   <div className="flex items-center justify-between pt-1.5 border-t border-emerald-50/50">
                     <div>
-                      {obs.isSubmitted ? (
+                      {obs.syncError ? (
+                        <span className="inline-flex items-center gap-1 text-[8.5px] font-black uppercase tracking-wider text-rose-700 bg-rose-50 border border-rose-200 px-2 py-0.5 rounded-full">
+                          <AlertTriangle className="w-2.5 h-2.5 text-rose-600" />
+                          Échec
+                        </span>
+                      ) : obs.syncedAt ? (
+                        <span className="inline-flex items-center gap-1 text-[8.5px] font-black uppercase tracking-wider text-sky-700 bg-sky-50 border border-sky-200 px-2 py-0.5 rounded-full">
+                          <CheckCircle2 className="w-2.5 h-2.5 text-sky-600" />
+                          Tableur
+                        </span>
+                      ) : obs.isSubmitted ? (
                         <span className="inline-flex items-center gap-1 text-[8.5px] font-black uppercase tracking-wider text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full">
                           <CheckCircle2 className="w-2.5 h-2.5 text-emerald-600" />
                           Transmis
@@ -439,9 +483,9 @@ export default function DataDashboard({
                       </button>
                       {!obs.isSubmitted && (
                         <button
-                          onClick={() => handleSimulateSubmission(obs.id)}
+                          onClick={() => handleSendOne(obs.id)}
                           className="p-1 hover:bg-emerald-50 text-emerald-600 hover:text-emerald-800 rounded border border-emerald-100 cursor-pointer"
-                          title="Envoyer"
+                          title="Envoyer vers le Google Sheet"
                         >
                           <Send className="w-3.5 h-3.5" />
                         </button>
@@ -535,7 +579,23 @@ export default function DataDashboard({
                       </td>
 
                       <td className="py-3.5 px-4">
-                        {obs.isSubmitted ? (
+                        {obs.syncError ? (
+                          <span
+                            className="inline-flex items-center gap-1 text-[9px] font-black uppercase tracking-wider text-rose-700 bg-rose-50 border-2 border-rose-200 px-2.5 py-0.5 rounded-full"
+                            title={obs.syncError}
+                          >
+                            <AlertTriangle className="w-3 h-3 text-rose-600" />
+                            Échec envoi
+                          </span>
+                        ) : obs.syncedAt ? (
+                          <span
+                            className="inline-flex items-center gap-1 text-[9px] font-black uppercase tracking-wider text-sky-700 bg-sky-50 border-2 border-sky-200 px-2.5 py-0.5 rounded-full"
+                            title={`Envoyé le ${new Date(obs.syncedAt).toLocaleString('fr-FR')}`}
+                          >
+                            <CheckCircle2 className="w-3 h-3 text-sky-600" />
+                            Dans le tableur
+                          </span>
+                        ) : obs.isSubmitted ? (
                           <span className="inline-flex items-center gap-1 text-[9px] font-black uppercase tracking-wider text-emerald-700 bg-emerald-50 border-2 border-emerald-200 px-2.5 py-0.5 rounded-full">
                             <CheckCircle2 className="w-3 h-3 text-emerald-600" />
                             Transmis
@@ -565,9 +625,9 @@ export default function DataDashboard({
                           </button>
                           {!obs.isSubmitted && (
                             <button
-                              onClick={() => handleSimulateSubmission(obs.id)}
+                              onClick={() => handleSendOne(obs.id)}
                               className="p-1.5 hover:bg-emerald-55 text-emerald-600 hover:text-emerald-800 rounded-lg transition-colors border border-transparent hover:border-emerald-300 cursor-pointer"
-                              title="Synchroniser individuellement"
+                              title="Envoyer vers le Google Sheet"
                             >
                               <Send className="w-4 h-4" />
                             </button>
