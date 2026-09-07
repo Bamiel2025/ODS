@@ -173,6 +173,8 @@ préfères créer les variables à la main dans Vercel, voici la liste complète
 | Onglet `ODS_Export` vide                              | Aucun stade coché dans les fiches, ou clic sur *Reconstruire l'onglet ODS_Export*.           |
 | Erreur d'autorisation Google au premier déploiement   | Cliquer sur *Avancé > Autoriser* lors de l'écran « Google n'a pas vérifié cette application ».|
 | Doublons malgré tout                                  | Impossible : vérifie que deux navigateurs n'ont pas créé la même fiche avant synchronisation (l'ID est horodaté). |
+| **« Fonction de script introuvable : doGet »** (page Google) | Le déploiement en ligne est **antérieur** au collage de `Code.gs`. Apps Script publie un instantané : il faut *Déployer > Gérer les déploiements > (crayon) > Version : Nouvelle version > Déployer*. L'URL `/exec` reste alors la même. |
+| « Réponse illisible du Google Sheet »                 | Le script n'est pas déployé en *Application Web*, ou l'accès n'est pas *Tout le monde*. |
 
 Le script ajoute également un menu **« ODS Provence »** dans le tableur pour reconstruire
 l'export ou vérifier la connexion à la main.

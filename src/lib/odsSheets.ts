@@ -235,7 +235,20 @@ async function postPayload(payload: Record<string, unknown>, config: OdsSheetsCo
       const json = JSON.parse(text) as RawResponse;
       return { ...json, _readable: true };
     } catch {
-      return { ok: response.ok, _readable: false, raw: text.slice(0, 200) };
+      // Google renvoie parfois une page HTML d'erreur avec un code 200
+      // (déploiement obsolète, script absent, autorisation refusée…).
+      // Ce n'est JAMAIS un succès : on le traduit en message actionnable.
+      return {
+        ok: false,
+        _readable: false,
+        error:
+          translateGoogleError(text) ??
+          `Réponse illisible du Google Sheet (HTTP ${response.status}). Vérifie que le script est bien déployé en « Application web », avec « Qui a accès : Tout le monde ».${
+            response.status === 401 || response.status === 403
+              ? ' Le déploiement refuse les utilisateurs anonymes.'
+              : ''
+          }`
+      };
     }
   } catch {
     try {
@@ -245,6 +258,29 @@ async function postPayload(payload: Record<string, unknown>, config: OdsSheetsCo
       return { ok: false, error: `Envoi impossible : ${String(networkError)}` };
     }
   }
+}
+
+/**
+ * Traduit les pages d'erreur HTML renvoyées par Google Apps Script en messages
+ * exploitables par l'enseignant. Renvoie null si la page n'est pas identifiable.
+ */
+function translateGoogleError(html: string): string | null {
+  if (!html || html[0] !== '<') return null;
+  const text = html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').toLowerCase();
+
+  if (text.includes('fonction de script introuvable') || text.includes('script function not found')) {
+    return "Le script déployé ne contient pas encore le code ODS. Ouvre le Google Sheet > Extensions > Apps Script, colle bien Code.gs, enregistre, puis Déployer > Gérer les déploiements > (crayon) > Version : Nouvelle version > Déployer.";
+  }
+  if (text.includes("n'a pas vérifié cette application") || text.includes('unverified app')) {
+    return "Le déploiement attend ton autorisation : ouvre une fois l'URL /exec dans le navigateur, clique sur Avancé > Autoriser, puis réessaie.";
+  }
+  if (text.includes('autorisation') || text.includes('sign in') || text.includes('connexion')) {
+    return 'Le script refuse les appels anonymes : redéploie avec « Exécuter en tant que : Moi » et « Qui a accès : Tout le monde ».';
+  }
+  if (text.includes('désolé') || text.includes('sorry') || text.includes('erreur')) {
+    return "Google a renvoyé une page d'erreur. Ouvre l'URL /exec dans un navigateur pour lire le message exact, puis redéploie si besoin.";
+  }
+  return null;
 }
 
 function buildMessage(res: RawResponse, fallback: string): string {
