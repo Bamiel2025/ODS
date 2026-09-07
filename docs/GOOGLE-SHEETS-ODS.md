@@ -118,23 +118,31 @@ préfères créer les variables à la main dans Vercel, voici la liste complète
 
 ### `ODS_Export` (format de saisie obs-saisons.fr)
 
-`DATE`, `STATION`, `GROUPE`, `TYPE_FICHE`, `ESPECE`, `STADE_CODE`, `STADE_LIBELLE`,
-`EFFECTIF`, `REMARQUES`, `ID_RELEVE`
+`DATE`, `STATION`, `GROUPE`, `TYPE_FICHE`, `ESPECE`, `CODE_BBCH`, `STADE_LIBELLE`,
+`STADE_INTERNE`, `TRANSMETTRE`, `EFFECTIF`, `REMARQUES`, `ID_RELEVE`
 
-| Stade relevé dans l'application     | Code ODS | Libellé                          |
-|-------------------------------------|----------|----------------------------------|
-| Feuillaison – début (~10 %)         | `F1`     | Débourrement (F1)                |
-| Feuillaison – plein (~50 %)         | `F2`     | Feuilles étalées (F2)            |
-| Floraison – début                   | `Fl1`    | Début floraison (Fl1)            |
-| Floraison – plein                   | `Fl2`    | Pleine floraison (Fl2)           |
-| Fructification – début              | `Fr1`    | Apparition des fruits (Fr1)      |
-| Fructification – plein              | `Fr2`    | Maturité des fruits (Fr2)        |
-| Sénescence – début                  | `F3`     | Changement de couleur (F3)       |
-| Sénescence – plein                  | `F4`     | Chute des feuilles (F4)          |
-| 1re fleur épanouie (herbacée)       | `Fl1`    | Première fleur épanouie (Fl1)    |
-| 1re observation adulte (animale)    | `A1`     | Première observation adulte (A1) |
+> ⚠️ **Point important** : l'Observatoire des Saisons n'utilise pas les codes maison
+> de l'application (`F1`, `Fl2`…) mais l'**échelle BBCH**, limitée à **7 stades**
+> (kit enseignant ODS Provence 2025, p. « Les stades phénologiques »).
+> C'est donc la colonne **`CODE_BBCH`** qu'il faut reporter sur le site ;
+> `STADE_INTERNE` ne sert qu'au suivi en classe.
 
-> Les codes `F1 → F4`, `Fl1 → Fl3`, `Fr1 → Fr3` sont ceux du protocole ODS.
+| Stade relevé dans l'application  | Interne | **Code BBCH** | Libellé officiel ODS                              | Transmettre |
+|----------------------------------|---------|---------------|---------------------------------------------------|-------------|
+| Feuillaison – début (~10 %)      | `F1`    | **`11`**      | Environ 10 % des feuilles sont développées        | Oui         |
+| Feuillaison – plein (~50 %)      | `F2`    | **`15`**      | Environ 50 % des feuilles sont développées        | Oui         |
+| Floraison – début (~10 %)        | `Fl1`   | **`61`**      | Environ 10 % des fleurs sont ouvertes             | Oui         |
+| Floraison – plein (~50 %)        | `Fl2`   | **`65`**      | Environ 50 % des fleurs sont ouvertes             | Oui         |
+| Fructification – début           | `Fr1`   | —             | Apparition des fruits (**hors protocole ODS**)    | **Non**     |
+| Fructification – plein           | `Fr2`   | **`85`**      | Environ 50 % des fruits sont mûrs                 | Oui         |
+| Sénescence – début (~10 %)       | `F3`    | **`91`**      | Environ 10 % des feuilles ont changé de couleur   | Oui         |
+| Sénescence – plein (~50 %)       | `F4`    | **`95`**      | Environ 50 % des feuilles ont changé de couleur   | Oui         |
+| 1re fleur épanouie (herbacée)    | `Fl1`   | **`61`**      | Première fleur épanouie (~10 % des fleurs)        | Oui         |
+| 1re observation adulte (animale) | `A1`    | —             | Première observation adulte (pas de code BBCH)    | **Non**     |
+
+Deux stades ne font pas partie des 7 stades ODS (`Fr1` et `A1`) : ils restent
+exploitables pour le travail en classe, mais ne sont pas à saisir sur le site.
+La colonne **`TRANSMETTRE`** permet de les filtrer d'un clic.
 
 ---
 
@@ -142,7 +150,8 @@ préfères créer les variables à la main dans Vercel, voici la liste complète
 
 1. Ouvre le tableur, onglet **`ODS_Export`**.
 2. Connecte-toi à ton compte sur <https://www.obs-saisons.fr> (espace de saisie ODS Provence).
-3. Reporte les lignes par date/stade pour ta station
+3. Filtre la colonne **`TRANSMETTRE`** sur *Oui*, puis reporte les lignes
+   (date + espèce + **code BBCH**) pour ta station
    **« Collège Ubelka – Auriol (Ripisylve de l'Huveaune) »**.
 4. En cas de besoin, tu peux aussi transmettre le CSV généré depuis l'application
    (bouton *Télécharger le CSV format ODS*) à l'équipe ODS Provence :

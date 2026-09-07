@@ -394,14 +394,17 @@ export async function rebuildExportSheet(config: OdsSheetsConfig): Promise<SyncR
 
 /** Construit le CSV miroir de l'onglet ODS_Export (secours hors-ligne). */
 export function buildExportCsv(observations: Observation[], config: OdsSheetsConfig): string {
+  // Mêmes colonnes que EXPORT_HEADERS dans google-apps-script/Code.gs
   const headers = [
     'DATE',
     'STATION',
     'GROUPE',
     'TYPE_FICHE',
     'ESPECE',
-    'STADE_CODE',
+    'CODE_BBCH',
     'STADE_LIBELLE',
+    'STADE_INTERNE',
+    'TRANSMETTRE',
     'EFFECTIF',
     'REMARQUES',
     'ID_RELEVE'
@@ -410,15 +413,17 @@ export function buildExportCsv(observations: Observation[], config: OdsSheetsCon
   const esc = (value: string) => `"${String(value ?? '').replace(/"/g, '""')}"`;
   const lignes: string[] = [headers.join(',')];
 
-  const stades: { key: keyof Observation; code: string; label: string }[] = [
-    { key: 'feuillaisonDebut', code: 'F1', label: 'Débourrement (F1)' },
-    { key: 'feuillaisonPlein', code: 'F2', label: 'Feuilles étalées (F2)' },
-    { key: 'floraisonDebut', code: 'Fl1', label: 'Début floraison (Fl1)' },
-    { key: 'floraisonPlein', code: 'Fl2', label: 'Pleine floraison (Fl2)' },
-    { key: 'fructificationDebut', code: 'Fr1', label: 'Apparition des fruits (Fr1)' },
-    { key: 'fructificationPlein', code: 'Fr2', label: 'Maturité des fruits (Fr2)' },
-    { key: 'senescenceDebut', code: 'F3', label: 'Changement de couleur (F3)' },
-    { key: 'senescencePlein', code: 'F4', label: 'Chute des feuilles (F4)' }
+  // Codes BBCH officiels de l'Observatoire des Saisons (7 stades).
+  // bbch '' = stade hors protocole ODS -> TRANSMETTRE = Non.
+  const stades: { key: keyof Observation; code: string; bbch: string; label: string }[] = [
+    { key: 'feuillaisonDebut', code: 'F1', bbch: '11', label: 'Environ 10 % des feuilles sont développées' },
+    { key: 'feuillaisonPlein', code: 'F2', bbch: '15', label: 'Environ 50 % des feuilles sont développées' },
+    { key: 'floraisonDebut', code: 'Fl1', bbch: '61', label: 'Environ 10 % des fleurs sont ouvertes' },
+    { key: 'floraisonPlein', code: 'Fl2', bbch: '65', label: 'Environ 50 % des fleurs sont ouvertes' },
+    { key: 'fructificationDebut', code: 'Fr1', bbch: '', label: 'Apparition des fruits (hors protocole ODS)' },
+    { key: 'fructificationPlein', code: 'Fr2', bbch: '85', label: 'Environ 50 % des fruits sont mûrs' },
+    { key: 'senescenceDebut', code: 'F3', bbch: '91', label: 'Environ 10 % des feuilles ont changé de couleur' },
+    { key: 'senescencePlein', code: 'F4', bbch: '95', label: 'Environ 50 % des feuilles ont changé de couleur' }
   ];
 
   observations
@@ -428,16 +433,27 @@ export function buildExportCsv(observations: Observation[], config: OdsSheetsCon
       const base = [obs.date, config.station || DEFAULT_STATION, obs.groupName, FICHE_LABEL[obs.ficheType], obs.speciesName];
       const suite = [obs.ficheType === 'herbacee' ? obs.nbFleursApproximatif ?? '' : obs.nbIndividusApproximatif ?? '', obs.remarques ?? '', obs.id];
 
+      const ligne = (bbch: string, label: string, codeInterne: string) =>
+        [...base, bbch, label, codeInterne, bbch ? 'Oui' : 'Non', ...suite].map(esc).join(',');
+
       if (obs.ficheType === 'ligneuse') {
         stades.forEach(stade => {
           if (obs[stade.key]) {
-            lignes.push([...base, stade.code, stade.label, ...suite].map(esc).join(','));
+            lignes.push(ligne(stade.bbch, stade.label, stade.code));
           }
         });
-      } else if (obs.ficheType === 'herbacee' && obs.premiereFleurEpanouie) {
-        lignes.push([...base, 'Fl1', 'Première fleur épanouie (Fl1)', ...suite].map(esc).join(','));
+      } else if (obs.ficheType === 'herbacee') {
+        if (obs.feuillaisonDebut) {
+          lignes.push(ligne('11', 'Environ 10 % des feuilles sont développées', 'F1'));
+        }
+        if (obs.feuillaisonPlein) {
+          lignes.push(ligne('15', 'Environ 50 % des feuilles sont développées', 'F2'));
+        }
+        if (obs.premiereFleurEpanouie) {
+          lignes.push(ligne('61', 'Première fleur épanouie (~10 % des fleurs ouvertes)', 'Fl1'));
+        }
       } else if (obs.ficheType === 'animale' && obs.premiereObsAdulte) {
-        lignes.push([...base, 'A1', 'Première observation adulte (A1)', ...suite].map(esc).join(','));
+        lignes.push(ligne('', 'Première observation adulte (hors échelle BBCH)', 'A1'));
       }
     });
 

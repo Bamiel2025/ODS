@@ -79,30 +79,47 @@ var RELEVE_HEADERS = [
   'SOURCE'               // 27
 ];
 
-/* Colonnes de l'onglet "ODS_Export" (format de saisie obs-saisons.fr) */
+/* --------------------------------------------------------------------------
+ *  Colonnes de l'onglet "ODS_Export" (saisie sur https://www.obs-saisons.fr)
+ *
+ *  L'Observatoire des Saisons n'utilise PAS les codes maison de l'application
+ *  mais l'échelle BBCH, limitée à 7 stades (kit enseignant ODS Provence 2025) :
+ *     11 = ~10 % des feuilles développées     15 = ~50 % des feuilles développées
+ *     61 = ~10 % des fleurs ouvertes          65 = ~50 % des fleurs ouvertes
+ *     85 = ~50 % des fruits mûrs
+ *     91 = ~10 % des feuilles colorées        95 = ~50 % des feuilles colorées
+ *
+ *  Les stades relevés par l'application mais absents du protocole ODS
+ *  (apparition des fruits Fr1, 1re observation animale A1) ont un CODE_BBCH
+ *  vide et la colonne TRANSMETTRE à "Non" : ils restent exploitables en classe
+ *  mais ne sont pas à saisir sur le site.
+ * -------------------------------------------------------------------------- */
 var EXPORT_HEADERS = [
   'DATE',
   'STATION',
   'GROUPE',
   'TYPE_FICHE',
   'ESPECE',
-  'STADE_CODE',
+  'CODE_BBCH',
   'STADE_LIBELLE',
+  'STADE_INTERNE',
+  'TRANSMETTRE',
   'EFFECTIF',
   'REMARQUES',
   'ID_RELEVE'
 ];
 
-/* Table de correspondance booléen -> stade phénologique ODS (espèce ligneuse) */
+/* Table de correspondance booléen -> stade phénologique (espèce ligneuse).
+ * bbch : code officiel ODS ; '' = stade hors protocole (non transmissible).   */
 var STADES_LIGNEUSE = [
-  { col: 9,  code: 'F1',  label: 'Débourrement (F1)' },
-  { col: 10, code: 'F2',  label: 'Feuilles étalées (F2)' },
-  { col: 11, code: 'Fl1', label: 'Début floraison (Fl1)' },
-  { col: 12, code: 'Fl2', label: 'Pleine floraison (Fl2)' },
-  { col: 13, code: 'Fr1', label: 'Apparition des fruits (Fr1)' },
-  { col: 14, code: 'Fr2', label: 'Maturité des fruits (Fr2)' },
-  { col: 15, code: 'F3',  label: 'Changement de couleur (F3)' },
-  { col: 16, code: 'F4',  label: 'Chute des feuilles (F4)' }
+  { col: 9,  code: 'F1',  bbch: '11', label: 'Environ 10 % des feuilles sont développées' },
+  { col: 10, code: 'F2',  bbch: '15', label: 'Environ 50 % des feuilles sont développées' },
+  { col: 11, code: 'Fl1', bbch: '61', label: 'Environ 10 % des fleurs sont ouvertes' },
+  { col: 12, code: 'Fl2', bbch: '65', label: 'Environ 50 % des fleurs sont ouvertes' },
+  { col: 13, code: 'Fr1', bbch: '',   label: 'Apparition des fruits (hors protocole ODS)' },
+  { col: 14, code: 'Fr2', bbch: '85', label: 'Environ 50 % des fruits sont mûrs' },
+  { col: 15, code: 'F3',  bbch: '91', label: 'Environ 10 % des feuilles ont changé de couleur' },
+  { col: 16, code: 'F4',  bbch: '95', label: 'Environ 50 % des feuilles ont changé de couleur' }
 ];
 
 /* ==========================================================================
@@ -232,6 +249,15 @@ function handleExport(data) {
  * ========================================================================== */
 
 /** Reconstruit entièrement l'onglet ODS_Export à partir de ODS_Releves. */
+/**
+ * Construit une ligne de l'onglet ODS_Export :
+ * 5 colonnes de contexte + (code BBCH, libellé, code interne, transmissible)
+ * + 3 colonnes de fin (effectif, remarques, id).
+ */
+function ligneExport_(base, bbch, label, codeInterne) {
+  return base.slice(0, 5).concat([bbch, label, codeInterne, bbch ? 'Oui' : 'Non'], base.slice(9));
+}
+
 function rebuildExportSheet_(ss, sourceName, exportName) {
   var src = ss.getSheetByName(sourceName);
   if (!src) return 0;
@@ -250,25 +276,28 @@ function rebuildExportSheet_(ss, sourceName, exportName) {
     var r = values[i];
     var type = String(r[3] || '');
     var remarques = [r[24] || '', r[19] || ''].join(' — ').replace(/^ — |— $/g, '').trim();
-    var base = [r[1], r[7] || CONFIG.STATION, r[4], type, r[5], '', '', r[18], remarques, r[0]];
+    var base = [r[1], r[7] || CONFIG.STATION, r[4], type, r[5], '', '', '', '', r[18], remarques, r[0]];
 
     if (type === 'Ligneuse') {
       for (var s = 0; s < STADES_LIGNEUSE.length; s++) {
         var st = STADES_LIGNEUSE[s];
         if (isOui_(r[st.col])) {
-          rows.push(base.slice(0, 5).concat([st.code, st.label], base.slice(7)));
+          rows.push(ligneExport_(base, st.bbch, st.label, st.code));
         }
       }
     } else if (type === 'Herbacée') {
-      if (isOui_(r[17])) {
-        rows.push(base.slice(0, 5).concat(['Fl1', 'Première fleur épanouie (Fl1)'], base.slice(7)));
-      }
       if (isOui_(r[9])) {
-        rows.push(base.slice(0, 5).concat(['F2', 'Feuilles étalées (F2)'], base.slice(7)));
+        rows.push(ligneExport_(base, '11', 'Environ 10 % des feuilles sont développées', 'F1'));
+      }
+      if (isOui_(r[10])) {
+        rows.push(ligneExport_(base, '15', 'Environ 50 % des feuilles sont développées', 'F2'));
+      }
+      if (isOui_(r[17])) {
+        rows.push(ligneExport_(base, '61', 'Première fleur épanouie (~10 % des fleurs ouvertes)', 'Fl1'));
       }
     } else if (type === 'Animale') {
       if (isOui_(r[17])) {
-        rows.push(base.slice(0, 5).concat(['A1', 'Première observation adulte (A1)'], base.slice(7)));
+        rows.push(ligneExport_(base, '', 'Première observation adulte (hors échelle BBCH)', 'A1'));
       }
     }
   }
