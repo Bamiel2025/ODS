@@ -163,6 +163,7 @@
     </p>
     <div class="row"><button id="export">Reconstruire l'export</button></div>
     <div class="msg" id="m4"></div>
+    <div id="exportTable" style="display:none;margin-top:12px"></div>
   </div>
 
   <!-- ------------------------------ JOURNAL ----------------------------- -->
@@ -356,8 +357,38 @@
     post({
       action:'export', token:c.token, format:FORMAT,
       sheetName:c.sheet, exportSheetName:c.exp
-    }, c).then(function(res){ rapport('m4','POST export', res); });
+    }, c).then(function(res){
+      rapport('m4','POST export', res);
+      if(res.readable && res.json && res.json.rows && res.json.rows.length){
+        renderExport(res.json.rows);
+      }
+    });
   };
+
+  /* Affiche le contenu de l'onglet ODS_Export renvoyé par le script */
+  function renderExport(rows){
+    var tbl = '<table><thead><tr>';
+    (rows[0] || []).forEach(function(h){ tbl += '<th>' + escapeHtml(h) + '</th>'; });
+    tbl += '</tr></thead><tbody>';
+    for(var i = 1; i < rows.length; i++){
+      tbl += '<tr>';
+      rows[i].forEach(function(v, idx){
+        var cls = '';
+        if(idx === 5 && (!v)) cls = ' style="color:#b3261e;font-weight:700"'; // CODE_BBCH vide
+        if(idx === 8) cls = (v === 'Oui') ? ' style="color:#0f7b52;font-weight:700"' : ' style="color:#b3261e;font-weight:700"';
+        tbl += '<td' + cls + '>' + escapeHtml(v) + '</td>';
+      });
+      tbl += '</tr>';
+    }
+    tbl += '</tbody></table>';
+    var box = document.getElementById('exportTable');
+    if(box){ box.innerHTML = tbl; box.style.display = 'block'; }
+  }
+  function escapeHtml(v){
+    return String(v == null ? '' : v).replace(/[&<>"]/g, function(ch){
+      return ch === '&' ? '&amp;' : ch === '<' ? '&lt;' : ch === '>' ? '&gt;' : '&quot;';
+    });
+  }
 })();
 </script>
 </body>

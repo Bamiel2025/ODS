@@ -236,12 +236,17 @@ function handleAppend(data) {
 /** Reconstruit l'onglet d'export au format ODS (1 ligne = 1 stade observé). */
 function handleExport(data) {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
-  var count = rebuildExportSheet_(
-    ss,
-    data.sheetName || CONFIG.SHEET_RELEVES,
-    data.exportSheetName || CONFIG.SHEET_EXPORT
-  );
-  return { ok: true, action: 'export', exportRows: count, spreadsheetUrl: ss.getUrl() };
+  var exportName = data.exportSheetName || CONFIG.SHEET_EXPORT;
+  var count = rebuildExportSheet_(ss, data.sheetName || CONFIG.SHEET_RELEVES, exportName);
+
+  // Renvoie aussi le contenu de l'onglet pour vérification immédiate
+  // (codes BBCH, libellés, colonne TRANSMETTRE) sans ouvrir le tableur.
+  var rows = [];
+  var out = ss.getSheetByName(exportName);
+  if (out && out.getLastRow() > 0) {
+    rows = out.getRange(1, 1, out.getLastRow(), out.getLastColumn()).getValues();
+  }
+  return { ok: true, action: 'export', exportRows: count, rows: rows, spreadsheetUrl: ss.getUrl() };
 }
 
 /* ==========================================================================
