@@ -37,7 +37,7 @@ Points clés :
 * dédoublonnage automatique par `ID_OBSERVATION` (pas de doublons en cas de double envoi) ;
 * envoi automatique ou manuel, file d'attente conservée dans le navigateur si hors-ligne ;
 * réglages protégés par le code enseignant `2027` ;
-* codes de stades conformes au protocole ODS (`F1, F2, F3, F4, Fl1, Fl2, Fr1, Fr2, A1`).
+* codes de stades conformes au protocole ODS : l'export utilise l'**échelle BBCH** (`CODE_BBCH` = `11 / 15 / 61 / 65 / 85 / 91 / 95`) ; `STADE_INTERNE` conserve les codes maison (`F1, F2, Fl1, Fl2, Fr1, Fr2, F3, F4, A1`) pour le suivi en classe.
 
 **Procédure complète :** [`docs/GOOGLE-SHEETS-ODS.md`](./docs/GOOGLE-SHEETS-ODS.md)
 **Script à coller dans le tableur :** [`google-apps-script/Code.gs`](./google-apps-script/Code.gs)
