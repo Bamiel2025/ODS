@@ -68,23 +68,38 @@ automatiquement un tableau ordonné, prêt à être remonté sur
 > Après un test réussi, les onglets `ODS_Releves` et `ODS_Export` apparaissent dans le
 > tableur (le script les crée automatiquement).
 
-### 2.4 Déploiement partagé (toute la classe)
+### 2.4 Déploiement partagé (toute la classe) — import Vercel en 1 clic
 
-Pour que tous les postes/tablettes soient déjà configurés, renseigne aussi les variables
-d'environnement (Vercel, AI Studio ou fichier `.env.local`) :
+Un fichier prêt à l'emploi se trouve à la racine du projet : **`.env.vercel`**.
 
-```
-VITE_ODS_SCRIPT_URL="https://script.google.com/macros/s/AKfycb…/exec"
-VITE_ODS_SYNC_TOKEN="ubelka-ods-2027"
-VITE_ODS_SHEET_NAME="ODS_Releves"
-VITE_ODS_EXPORT_SHEET="ODS_Export"
-VITE_ODS_STATION="Collège Ubelka - Auriol (Ripisylve de l'Huveaune)"
-VITE_ODS_SHEET_URL="https://docs.google.com/spreadsheets/d/…/edit"
-VITE_ODS_AUTO_SYNC="true"
-```
+1. Ouvre `.env.vercel` et remplace les deux valeurs marquées *À COMPLÉTER* :
+   * `VITE_ODS_SCRIPT_URL` → l'URL `/exec` copiée à l'étape 2.2 ;
+   * `VITE_ODS_SHEET_URL` → l'adresse de ton Google Sheet (barre d'adresse du navigateur).
+2. Sur Vercel : **Projet > Settings > Environment Variables > Import .env** → choisis le
+   fichier → coche *Production, Preview, Development* → **Save**.
+3. **Deployments > ⋯ > Redeploy** : les variables d'environnement ne sont prises en compte
+   qu'au build, il faut donc relancer un déploiement.
 
-Les réglages saisis dans l'application sont conservés dans le navigateur et **prioritaires**
-sur ces valeurs par défaut.
+Toutes les tablettes sont alors préconfigurées : plus besoin de saisir le code enseignant
+ni l'URL sur chaque appareil. Les réglages saisis dans l'application restent enregistrés
+dans le navigateur et sont **prioritaires** sur ces valeurs par défaut.
+
+> Tant que `VITE_ODS_SCRIPT_URL` contient encore le texte `COLLER_ICI_L_URL_EXEC`,
+> l'application considère la liaison comme non configurée : aucun risque de fausse
+> connexion.
+
+Le fichier `.env.vercel` n'est pas versionné (il contiendra ton jeton et tes URL). Si tu
+préfères créer les variables à la main dans Vercel, voici la liste complète :
+
+| Variable                | Valeur                                                |
+|-------------------------|-------------------------------------------------------|
+| `VITE_ODS_SCRIPT_URL`   | `https://script.google.com/macros/s/AKfycb…/exec`      |
+| `VITE_ODS_SYNC_TOKEN`   | `ubelka-ods-2027`                                      |
+| `VITE_ODS_SHEET_NAME`   | `ODS_Releves`                                          |
+| `VITE_ODS_EXPORT_SHEET` | `ODS_Export`                                           |
+| `VITE_ODS_STATION`      | `Collège Ubelka - Auriol (Ripisylve de l'Huveaune)`    |
+| `VITE_ODS_SHEET_URL`    | `https://docs.google.com/spreadsheets/d/…/edit`         |
+| `VITE_ODS_AUTO_SYNC`    | `true`                                                 |
 
 ---
 
