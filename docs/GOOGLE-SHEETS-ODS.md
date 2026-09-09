@@ -189,6 +189,7 @@ redéploiement Vercel**. Les réglages y sont pré-remplis et mémorisés.
 | Doublons malgré tout                                  | Impossible : vérifie que deux navigateurs n'ont pas créé la même fiche avant synchronisation (l'ID est horodaté). |
 | **« Fonction de script introuvable : doGet »** (page Google) | Le déploiement en ligne est **antérieur** au collage de `Code.gs`. Apps Script publie un instantané : il faut *Déployer > Gérer les déploiements > (crayon) > Version : Nouvelle version > Déployer*. L'URL `/exec` reste alors la même. |
 | « Réponse illisible du Google Sheet »                 | Le script n'est pas déployé en *Application Web*, ou l'accès n'est pas *Tout le monde*. |
+| Test OK mais tableur vide / fiche « envoyée » absente | L'URL `/exec` est obsolète (ancien déploiement) : la console du navigateur montre une URL différente du dernier déploiement, avec une erreur CORS. Aligne l'URL partout (application + Vercel + `.env.vercel`), puis **renvoie** les fiches — les doublons sont ignorés. |
 
 Le script ajoute également un menu **« ODS Provence »** dans le tableur pour reconstruire
 l'export ou vérifier la connexion à la main.

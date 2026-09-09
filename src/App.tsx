@@ -90,23 +90,31 @@ export default function App() {
     saveSheetsConfig(config);
   };
 
-  // Applique le résultat d'un envoi : horodatage ou message d'erreur
+  // Applique le résultat d'un envoi : horodatage ou message d'erreur.
+  // Un envoi "optimiste" (requête partie mais réponse illisible, cas CORS)
+  // ne marque JAMAIS la fiche comme synchronisée : sinon le carnet affiche
+  // "dans le tableur" alors que rien n'est arrivé. La fiche reste à envoyer
+  // et un second envoi est sans risque (dédoublonnage par ID_OBSERVATION).
   const applySyncResult = (ids: string[], result: SyncResult) => {
     const stamp = new Date().toISOString();
+    const confirmed = result.ok && !result.optimistic;
+    const message = result.ok && result.optimistic
+      ? `${result.message} Vérifie le tableur puis renvoie la fiche (les doublons sont ignorés automatiquement).`
+      : result.message;
     setObservations(prev => {
       const next = prev.map(obs =>
         ids.includes(obs.id)
-          ? result.ok
+          ? confirmed
             ? { ...obs, isSubmitted: true, syncedAt: stamp, syncError: undefined }
-            : { ...obs, syncError: result.message }
+            : { ...obs, syncError: message }
           : obs
       );
       localStorage.setItem(CACHE_KEY, JSON.stringify(next));
       return next;
     });
     setSyncStatus({
-      kind: result.ok ? 'ok' : 'error',
-      message: result.message,
+      kind: confirmed ? 'ok' : 'error',
+      message,
       at: stamp
     });
   };

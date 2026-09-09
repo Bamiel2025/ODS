@@ -360,6 +360,21 @@ export async function testSheetsConnection(config: OdsSheetsConfig): Promise<Syn
     return { ok: false, message: buildMessage(res, 'Connexion refusée par le Google Sheet.') };
   }
 
+  // Réponse illisible (CORS opaque) : le test NE DOIT PAS afficher "Connexion OK".
+  // Cas typique : URL /exec obsolète (ancien déploiement supprimé) — Google renvoie
+  // une page sans en-têtes CORS et le navigateur bloque la lecture. Afficher OK ici
+  // faisait croire que tout fonctionnait alors que le tableur restait vide.
+  if (res._readable !== true) {
+    return {
+      ok: false,
+      message:
+        "Le script ne répond pas de façon lisible (réponse bloquée par le navigateur). " +
+        "Vérifie que l'URL /exec correspond bien au DERNIER déploiement " +
+        "(Apps Script > Déployer > Gérer les déploiements) et que l'accès est « Tout le monde ». " +
+        "Si tu viens de redéployer, mets à jour l'URL dans l'application ET dans Vercel."
+    };
+  }
+
   const title = typeof res.spreadsheet === 'string' && res.spreadsheet ? ` « ${res.spreadsheet} »` : '';
   return {
     ok: true,
