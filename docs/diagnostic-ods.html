@@ -77,7 +77,7 @@
     <h2><span class="step">0</span> Réglages</h2>
     <p class="hint">Déjà pré-remplis avec les valeurs du projet. Corrige uniquement si besoin.</p>
     <label for="url">URL du Google Apps Script (finit par <code>/exec</code>)</label>
-    <input type="text" id="url" value="https://script.google.com/macros/s/AKfycbwGCOZ27htVQTa-1UV0gh9ZGKgxUexfGzwpy_V__GviVg0loA9Koa0c3_nrFqSf70INYg/exec">
+    <input type="text" id="url" value="https://script.google.com/macros/s/AKfycbzxOVmTh_dori1pXqesWz1IKrxAbfmOVbg6t2tKi9CZeQPkMU4MZYHwgTTFuh_7A3T8mw/exec">
     <div class="grid2">
       <div>
         <label for="token">Jeton partagé</label>
@@ -97,7 +97,7 @@
       </div>
     </div>
     <label for="sheeturl">Adresse du Google Sheet (pour l'ouvrir d'un clic)</label>
-    <input type="text" id="sheeturl" placeholder="https://docs.google.com/spreadsheets/d/.../edit">
+    <input type="text" id="sheeturl" value="https://docs.google.com/spreadsheets/d/1G4rHFSGxsr6dmk6msPcqjfxZzRk2OVkVcypIaznp0ds/edit?usp=sharing" placeholder="https://docs.google.com/spreadsheets/d/.../edit">
     <div class="row" style="margin-top:12px">
       <button class="gray" id="save">Enregistrer</button>
       <button class="ghost" id="openSheet">Ouvrir le tableur</button>
@@ -123,8 +123,9 @@
       <tr><td>« Google n'a pas vérifié cette application »</td><td>❌ Cliquer sur <em>Avancé &gt; Autoriser</em> une première fois.</td></tr>
     </table>
     <div class="msg info" id="m1" style="display:block">
-      État actuel constaté le 07/09/2026 : la réponse est « Fonction de script introuvable : doGet ».
-      Il faut redéployer en <strong>nouvelle version</strong>.
+      Si la réponse est « Fonction de script introuvable : doGet », le déploiement en ligne est
+      antérieur au code : faire <em>Déployer &gt; Gérer les déploiements &gt; ✏️ &gt; Version :
+      Nouvelle version &gt; Déployer</em> (l'URL <code>/exec</code> reste la même).
     </div>
   </div>
 

@@ -431,7 +431,26 @@ export function buildExportCsv(observations: Observation[], config: OdsSheetsCon
     .sort((a, b) => (a.date || '').localeCompare(b.date || ''))
     .forEach(obs => {
       const base = [obs.date, config.station || DEFAULT_STATION, obs.groupName, FICHE_LABEL[obs.ficheType], obs.speciesName];
-      const suite = [obs.ficheType === 'herbacee' ? obs.nbFleursApproximatif ?? '' : obs.nbIndividusApproximatif ?? '', obs.remarques ?? '', obs.id];
+      // Parité avec Code.gs (rebuildExportSheet_) : REMARQUES + COMPLEMENT concaténés.
+      // Sans cela le CSV de secours perd les commentaires détaillés (état des
+      // feuilles, comportement animal, précisions ligneuses).
+      const complement =
+        obs.ficheType === 'ligneuse'
+          ? [
+              obs.feuillaisonComm && `Feuilles : ${obs.feuillaisonComm}`,
+              obs.floraisonComm && `Fleurs : ${obs.floraisonComm}`,
+              obs.fructificationComm && `Fruits : ${obs.fructificationComm}`,
+              obs.senescenceComm && `Sénescence : ${obs.senescenceComm}`
+            ]
+              .filter(Boolean)
+              .join(' | ')
+          : obs.ficheType === 'herbacee'
+          ? `État des feuilles : ${safe(obs.etatFeuilles)}`
+          : safe(obs.comportementObserve);
+      const remarquesEnrichies = [safe(obs.remarques), complement]
+        .filter(v => v && v.replace(/^État des feuilles :\s*$/, '').trim())
+        .join(' — ');
+      const suite = [obs.ficheType === 'herbacee' ? obs.nbFleursApproximatif ?? '' : obs.nbIndividusApproximatif ?? '', remarquesEnrichies, obs.id];
 
       const ligne = (bbch: string, label: string, codeInterne: string) =>
         [...base, bbch, label, codeInterne, bbch ? 'Oui' : 'Non', ...suite].map(esc).join(',');
