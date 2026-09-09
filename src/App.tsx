@@ -18,7 +18,7 @@ import {
   CloudUpload
 } from 'lucide-react';
 
-import { TripType, Observation } from './types';
+import { TripType, Observation, getCurrentTripType } from './types';
 import { INITIAL_OBSERVATIONS, ODS_SPECIES, UBELKA_TREES } from './data';
 
 import HuveauneMap from './components/HuveauneMap';
@@ -44,8 +44,10 @@ export default function App() {
   // State for active tab
   const [activeTab, setActiveTab] = useState<'accueil' | 'pedago' | 'especes' | 'saisie' | 'dashboard' | 'sheets'>('accueil');
   
-  // State for simulated active trip (Autumn, Winter, Spring)
-  const [activeTripType, setActiveTripType] = useState<TripType>('printemps');
+  // Sortie active : déduite de la date du jour (et modifiable à la main).
+  // Avant, la valeur était figée sur "printemps" : les fiches saisies en
+  // septembre étaient rangées dans la mauvaise sortie du carnet.
+  const [activeTripType, setActiveTripType] = useState<TripType>(() => getCurrentTripType());
 
   // Mobile Application view mode simulation
   const [isMobileMode, setIsMobileMode] = useState<boolean>(false);

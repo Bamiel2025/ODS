@@ -1,5 +1,26 @@
 export type TripType = 'automne' | 'hiver' | 'printemps';
 
+/**
+ * Déduit la sortie ODS en cours à partir de la date du jour.
+ *
+ * Les trois sorties scolaires suivent le calendrier météo :
+ *   - septembre → novembre : automne
+ *   - décembre → février   : hiver
+ *   - mars → juin           : printemps
+ * Juillet-août (vacances d'été, aucune sortie) : on prépare la rentrée,
+ * donc on retombe sur "automne".
+ *
+ * Sans cette détection, la sortie active restait figée sur une valeur
+ * codée en dur et les fiches de septembre étaient rangées en "printemps".
+ */
+export function getCurrentTripType(refDate: Date = new Date()): TripType {
+  const month = refDate.getMonth(); // 0 = janvier … 11 = décembre
+  if (month >= 8 && month <= 10) return 'automne'; // sep, oct, nov
+  if (month === 11 || month <= 1) return 'hiver'; // déc, jan, fév
+  if (month >= 2 && month <= 5) return 'printemps'; // mar … juin
+  return 'automne'; // juil, août : on prépare la rentrée
+}
+
 export interface PhenologicalStage {
   code: string; // e.g. "F1", "Fl1", "Fr1"
   name: string; // e.g. "Débourrement", "Début floraison"
